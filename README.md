@@ -10,8 +10,9 @@
 
 MQTT Security Explorer é uma ferramenta avançada de análise de segurança para brokers MQTT, amplamente utilizados em ecossistemas IoT e comunicações M2M. Esta ferramenta foi projetada para profissionais de segurança e administradores de sistemas realizarem avaliações de segurança em ambientes MQTT.
 
-![MQTT Security Explorer Banner](https://via.placeholder.com/800x200?text=MQTT+Security+Explorer)
-
+<div align="center">
+  <img src="./mqtt.png">
+</div>
 ## ✨ Características
 
 - **Detecção de vulnerabilidades comuns:**
@@ -163,9 +164,8 @@ Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para ma
 ## 📧 Contato
 
 Para qualquer dúvida ou sugestão, entre em contato:
-- Email: seu.email@exemplo.com
-- LinkedIn: [Seu Nome](https://linkedin.com/in/seu-perfil)
-- Twitter: [@seu_usuario](https://twitter.com/seu_usuario)
+- LinkedIn: [Steven Guimaráes](https://www.linkedin.com/in/steven-guimaraes-29aa79212/)
+
 
 ## 📖 Modos de Operação
 
